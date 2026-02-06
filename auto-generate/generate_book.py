@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-v1~v4 프로젝트를 분석하여 BOOK.md 생성
+v1~v5 프로젝트를 분석하여 BOOK.md 생성
 클로드 CLI에서 자동 실행용
 """
 import os

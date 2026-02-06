@@ -17,7 +17,7 @@ python3 auto-generate/run_at_1am.py
 
 ## 파일 설명
 
-- `generate_book.py` - v1~v4 프로젝트를 분석하여 BOOK.md 생성
+- `generate_book.py` - v1~v5 프로젝트를 분석하여 BOOK.md 생성
 - `run_at_1am.py` - **새벽 1시 10분 자동 실행 설정 및 실행 스크립트 (크로스 플랫폼)** ⭐
   - Windows: 작업 스케줄러(`schtasks`)에 등록
   - Linux/Mac: `at` 명령어로 등록 (수동 설정 필요)
@@ -53,12 +53,27 @@ python auto-generate\run_at_1am.py
 1. **2026-02-07 새벽 01:10**에 한 번만 실행되도록 Windows 작업 스케줄러에 자동으로 등록됩니다
 2. 등록된 작업은 `run_at_1am.py --execute`를 실행하여 BOOK.md 생성 + Git 푸시를 수행합니다
 3. `schtasks` 명령어를 사용하여 Windows 작업 스케줄러에 등록
+4. **절전 모드 방지**: 스크립트 실행 시 작업 시간까지 절전 모드가 자동으로 방지됩니다
 
 > ⚠️ **주의**: 관리자 권한이 필요할 수 있습니다. PowerShell을 관리자 권한으로 실행한 후 실행하세요.
+> 
+> 💤 **절전 모드 방지**: 스크립트 실행 시 `powercfg` 명령어를 사용하여 절전 모드를 방지합니다. 작업 실행 시간까지 절전 모드가 방지되므로 컴퓨터가 절전 모드로 들어가지 않습니다.
 
 **등록 확인:**
 ```bash
 schtasks /Query /TN "BOOK_md_자동생성_20260207"
+```
+
+**작업 중지 (비활성화):**
+```bash
+# PowerShell 관리자 권한으로 실행
+schtasks /Change /TN "BOOK_md_자동생성_20260207" /DISABLE
+```
+
+**작업 재시작 (활성화):**
+```bash
+# PowerShell 관리자 권한으로 실행
+schtasks /Change /TN "BOOK_md_자동생성_20260207" /ENABLE
 ```
 
 **수동 실행 테스트:**
@@ -66,10 +81,15 @@ schtasks /Query /TN "BOOK_md_자동생성_20260207"
 schtasks /Run /TN "BOOK_md_자동생성_20260207"
 ```
 
-**작업 삭제:**
+**작업 삭제 (완전 제거):**
 ```bash
+# PowerShell 관리자 권한으로 실행
 schtasks /Delete /TN "BOOK_md_자동생성_20260207" /F
 ```
+
+> 💡 **참고**: 
+> - **중지**: 작업을 비활성화하지만 나중에 다시 활성화할 수 있습니다
+> - **삭제**: 작업을 완전히 제거합니다 (다시 등록하려면 스크립트를 다시 실행해야 함)
 
 #### 수동 실행 (테스트용)
 
@@ -177,5 +197,6 @@ export CLAUDE_AUTO_CONFIRM=true
 - ✅ **Git 인증 정보**: Windows에 이미 설정되어 있음 (자격 증명 관리자 사용)
 - ✅ **Python**: PATH에 등록되어 있어야 함
 - ✅ **Git 저장소**: 초기화되어 있어야 함
+- ✅ **절전 모드 방지**: 스크립트 실행 시 작업 시간까지 절전 모드가 자동으로 방지됨
 - ⚠️ **컴퓨터 상태**: 작업 실행 시 컴퓨터가 켜져 있어야 함 (꺼져 있으면 실행 안 됨)
 - ⚠️ **전원 상태**: 배터리/AC 전원 모두에서 실행 가능하도록 설정됨
