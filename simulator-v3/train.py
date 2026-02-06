@@ -179,6 +179,7 @@ def train():
                   f"Steps: {episode_length:4d} | "
                   f"Goals: {goal_reached_count:4d} ({success_rate:5.1f}%) | "
                   f"Epsilon: {agent.epsilon:.3f} | "
+                  f"LR: {agent.learning_rate:.6f} | "
                   f"Map: {current_map_id}")
 
         # 모델 저장 (200 에피소드마다)
