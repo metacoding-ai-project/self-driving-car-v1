@@ -93,6 +93,12 @@ def test():
             goal_reached += 1
             done = True
 
+        # v5: 캐시 업데이트 (Policy > Cache 원칙)
+        # success 판단: 목적지 도달 또는 안전하게 이동 중
+        if USE_CACHE:
+            success = env.is_goal(car.x, car.y) or (not done)  # 목적지 도달 or 계속 진행 중
+            agent.update_cache(state, action, success)
+
         if done:
             total_episodes += 1
             total_score += car.score
@@ -126,12 +132,18 @@ def test():
         # 정보 표시
         y_offset = 10
         texts = [
-            ("🚗 자율주행 테스트 모드 v2 - 일반화 경로 찾기", font, (255, 255, 100)),
+            ("🚗 자율주행 테스트 모드 v5 - Policy > Cache", font, (255, 255, 100)),
             (f"맵 ID: {env.map_id}  |  현재 행동: {current_action}", small_font, (255, 255, 255)),
             (f"Score: {car.score:.1f}  |  Steps: {car.steps}", small_font, (255, 255, 255)),
             (f"Episodes: {total_episodes}  |  Goal Reached: {goal_reached}", small_font, (100, 255, 100)),
             (f"Success Rate: {(goal_reached/total_episodes*100) if total_episodes > 0 else 0:.1f}%", small_font, (100, 255, 100)),
         ]
+
+        # v5: 캐시 통계 표시 (USE_CACHE가 활성화된 경우)
+        if USE_CACHE:
+            cache_stats = agent.get_cache_stats()
+            texts.append((f"📦 Cache: Size={cache_stats['size']} | Hits={cache_stats['hits']} | Agreements={cache_stats['agreements']} | Conflicts={cache_stats['conflicts']}",
+                         small_font, (255, 200, 100)))
 
         for text, font_obj, color in texts:
             text_surface = font_obj.render(text, True, color)
