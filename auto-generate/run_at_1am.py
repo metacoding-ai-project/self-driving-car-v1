@@ -6,20 +6,51 @@ Windows 작업 스케줄러에 자동으로 등록합니다.
 """
 import os
 import sys
+import json
 import subprocess
 from datetime import datetime, timedelta
+
+def load_claude_config():
+    """claude_config.json 파일을 읽어서 환경 변수로 설정"""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(script_dir, 'claude_config.json')
+    
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                
+            # JSON 설정을 환경 변수로 변환
+            if config.get('non_interactive'):
+                os.environ['CLAUDE_NON_INTERACTIVE'] = 'true'
+            if config.get('auto_confirm'):
+                os.environ['CLAUDE_AUTO_CONFIRM'] = 'true'
+            if config.get('quiet_mode'):
+                os.environ['CLAUDE_QUIET_MODE'] = 'true'
+            if config.get('skip_prompts'):
+                os.environ['CLAUDE_SKIP_PROMPTS'] = 'true'
+                
+            return True
+        except Exception as e:
+            print(f"⚠️ claude_config.json 읽기 실패: {e}")
+            return False
+    else:
+        # 파일이 없으면 기본값으로 환경 변수 설정
+        os.environ['CLAUDE_NON_INTERACTIVE'] = 'true'
+        os.environ['CLAUDE_AUTO_CONFIRM'] = 'true'
+        os.environ['CLAUDE_QUIET_MODE'] = 'true'
+        os.environ['CLAUDE_SKIP_PROMPTS'] = 'true'
+        return False
 
 def generate_and_push():
     """BOOK.md 생성 및 Git 푸시"""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(script_dir)
+    # 작업 디렉토리를 프로젝트 루트로 변경
     os.chdir(project_root)
     
-    # 클로드 CLI 비대화형 모드 설정
-    os.environ['CLAUDE_NON_INTERACTIVE'] = 'true'
-    os.environ['CLAUDE_AUTO_CONFIRM'] = 'true'
-    os.environ['CLAUDE_QUIET_MODE'] = 'true'
-    os.environ['CLAUDE_SKIP_PROMPTS'] = 'true'
+    # claude_config.json 파일을 읽어서 환경 변수로 설정
+    load_claude_config()
     
     print("=" * 60)
     print("BOOK.md 생성 및 Git 푸시")
@@ -95,7 +126,8 @@ def schedule_for_1am():
     task_name = "BOOK_md_자동생성_20260207"
     
     # 실행 시간: 2026-02-07 01:00:00
-    start_date = "2026-02-07"
+    # schtasks는 날짜를 mm/dd/yyyy 형식으로 요구
+    start_date = "02/07/2026"
     start_time = "01:00"
     
     print("=" * 60)
@@ -107,17 +139,20 @@ def schedule_for_1am():
     print()
     
     # schtasks 명령어 생성 (Python 스크립트 직접 실행)
+    # 경로에 공백이 있을 수 있으므로 따옴표로 감싸기
+    # 작업 디렉토리는 스크립트 내에서 자동으로 변경됨
+    task_run = f'"{python_exe}" "{python_script}" --execute'
+    
     cmd = [
         'schtasks',
         '/Create',
         '/F',  # Force (이미 존재하면 덮어쓰기)
         '/TN', task_name,
-        '/TR', f'"{python_exe}" "{python_script}" --execute',  # --execute 플래그로 실제 실행
+        '/TR', task_run,
         '/SC', 'ONCE',  # 한 번만 실행
         '/SD', start_date,
         '/ST', start_time,
         '/RL', 'HIGHEST',
-        '/WD', project_root,  # 작업 디렉토리 설정
     ]
     
     try:
@@ -157,6 +192,9 @@ def schedule_for_1am():
         return False
 
 if __name__ == '__main__':
+    # 프로그램 시작 시 claude_config.json 로드
+    load_claude_config()
+    
     # --execute 플래그가 있으면 실제 작업 실행
     if '--execute' in sys.argv:
         if generate_and_push():

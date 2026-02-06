@@ -6,8 +6,41 @@ v1~v4 프로젝트를 분석하여 BOOK.md 생성
 """
 import os
 import sys
+import json
 from datetime import datetime
 from pathlib import Path
+
+def load_claude_config():
+    """claude_config.json 파일을 읽어서 환경 변수로 설정"""
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    config_path = os.path.join(script_dir, 'claude_config.json')
+    
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                
+            # JSON 설정을 환경 변수로 변환
+            if config.get('non_interactive'):
+                os.environ['CLAUDE_NON_INTERACTIVE'] = 'true'
+            if config.get('auto_confirm'):
+                os.environ['CLAUDE_AUTO_CONFIRM'] = 'true'
+            if config.get('quiet_mode'):
+                os.environ['CLAUDE_QUIET_MODE'] = 'true'
+            if config.get('skip_prompts'):
+                os.environ['CLAUDE_SKIP_PROMPTS'] = 'true'
+                
+            return True
+        except Exception as e:
+            print(f"⚠️ claude_config.json 읽기 실패: {e}")
+            return False
+    else:
+        # 파일이 없으면 기본값으로 환경 변수 설정
+        os.environ['CLAUDE_NON_INTERACTIVE'] = 'true'
+        os.environ['CLAUDE_AUTO_CONFIRM'] = 'true'
+        os.environ['CLAUDE_QUIET_MODE'] = 'true'
+        os.environ['CLAUDE_SKIP_PROMPTS'] = 'true'
+        return False
 
 def read_file_safe(file_path):
     """파일 읽기 (안전하게)"""
@@ -271,6 +304,9 @@ python main.py
     return book_path
 
 if __name__ == '__main__':
+    # 프로그램 시작 시 claude_config.json 로드
+    load_claude_config()
+    
     try:
         book_path = generate_book()
         sys.exit(0)

@@ -132,20 +132,45 @@ python3 auto-generate/run_at_1am.py --execute
 
 ## 클로드 CLI 비대화형 모드
 
-클로드 CLI가 질문을 하지 않도록 하려면:
+클로드 CLI가 실행 중에 세션 질문을 하지 않도록 설정합니다.
 
-1. 환경 변수 설정:
-   ```bash
-   export CLAUDE_NON_INTERACTIVE=true
-   export CLAUDE_AUTO_CONFIRM=true
-   ```
+### 자동 설정 (권장) ⭐
 
-2. 또는 `auto-generate/claude_config.json` 파일 사용 (참고용)
+**`claude_config.json` 파일이 자동으로 읽혀서 환경 변수로 설정됩니다.**
 
-3. 또는 명령어에 플래그 추가:
-   ```bash
-   claude --non-interactive --auto-confirm
-   ```
+- `run_at_1am.py` 실행 시 자동으로 `claude_config.json` 파일을 읽어서 환경 변수로 설정
+- `generate_book.py` 실행 시에도 자동으로 설정 파일 읽기
+- 파일 위치: `auto-generate/claude_config.json` (현재 위치)
+
+**설정 내용:**
+```json
+{
+  "non_interactive": true,
+  "auto_confirm": true,
+  "quiet_mode": true,
+  "skip_prompts": true
+}
+```
+
+### 수동 설정 (선택사항)
+
+필요시 환경 변수를 직접 설정할 수도 있습니다:
+
+```bash
+# Windows (PowerShell)
+$env:CLAUDE_NON_INTERACTIVE="true"
+$env:CLAUDE_AUTO_CONFIRM="true"
+
+# Linux/Mac
+export CLAUDE_NON_INTERACTIVE=true
+export CLAUDE_AUTO_CONFIRM=true
+```
+
+### 폴더 위치
+
+**`claude_config.json` 파일은 `auto-generate/` 폴더에 있어야 합니다.**
+- 현재 위치: `auto-generate/claude_config.json` ✅
+- 스크립트가 자동으로 같은 폴더에서 파일을 찾습니다
 
 ## 주의사항
 
