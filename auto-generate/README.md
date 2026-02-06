@@ -18,7 +18,7 @@ python3 auto-generate/run_at_1am.py
 ## 파일 설명
 
 - `generate_book.py` - v1~v4 프로젝트를 분석하여 BOOK.md 생성
-- `run_at_1am.py` - **새벽 1시 자동 실행 설정 및 실행 스크립트 (크로스 플랫폼)** ⭐
+- `run_at_1am.py` - **새벽 1시 10분 자동 실행 설정 및 실행 스크립트 (크로스 플랫폼)** ⭐
   - Windows: 작업 스케줄러(`schtasks`)에 등록
   - Linux/Mac: `at` 명령어로 등록 (수동 설정 필요)
   - `--execute` 플래그로 BOOK.md 생성 + Git 푸시 실행
@@ -41,7 +41,7 @@ python3 auto-generate/run_at_1am.py
 
 ---
 
-### 🪟 Windows에서 새벽 1시 자동 실행 설정
+### 🪟 Windows에서 새벽 1시 10분 자동 실행 설정
 
 #### 방법 1: Python 스크립트로 자동 등록 (권장) ⭐
 
@@ -50,7 +50,7 @@ python auto-generate\run_at_1am.py
 ```
 
 **동작 과정:**
-1. **2026-02-07 새벽 01:00**에 한 번만 실행되도록 Windows 작업 스케줄러에 자동으로 등록됩니다
+1. **2026-02-07 새벽 01:10**에 한 번만 실행되도록 Windows 작업 스케줄러에 자동으로 등록됩니다
 2. 등록된 작업은 `run_at_1am.py --execute`를 실행하여 BOOK.md 생성 + Git 푸시를 수행합니다
 3. `schtasks` 명령어를 사용하여 Windows 작업 스케줄러에 등록
 
@@ -82,7 +82,7 @@ python auto-generate\run_at_1am.py --execute
 1. 작업 스케줄러 열기 (`Win + R` → `taskschd.msc`)
 2. "기본 작업 만들기" 클릭
 3. 이름: `BOOK.md 자동 생성`
-4. 트리거: `2026-02-07 01:00:00`, **한 번만 실행** (반복 없음)
+4. 트리거: `2026-02-07 01:10:00`, **한 번만 실행** (반복 없음)
 5. 작업: 프로그램 시작
    - 프로그램: `C:\workspace\python_lab\auto-generate\run_at_1am.py`
    - 인수: `--execute`
@@ -94,20 +94,20 @@ python auto-generate\run_at_1am.py --execute
 
 > 📌 **중요**: 컴퓨터가 꺼져 있으면 작업이 실행되지 않습니다. 컴퓨터가 켜져 있을 때만 실행됩니다.
 
-### 🐧 Linux/Mac에서 새벽 1시 자동 실행 설정
+### 🐧 Linux/Mac에서 새벽 1시 10분 자동 실행 설정
 
 #### 방법 1: `at` 명령어로 직접 등록 (권장) ⭐
 
 ```bash
 # at 명령어로 등록
-echo "cd $(pwd) && python3 auto-generate/run_at_1am.py --execute" | at 01:00 2026-02-07
+echo "cd $(pwd) && python3 auto-generate/run_at_1am.py --execute" | at 01:10 2026-02-07
 
 # 또는 Python 스크립트 실행 후 안내 메시지 참고
 python3 auto-generate/run_at_1am.py
 ```
 
 **동작 과정:**
-1. **2026-02-07 새벽 01:00**에 한 번만 실행되도록 `at` 명령어로 등록됩니다
+1. **2026-02-07 새벽 01:10**에 한 번만 실행되도록 `at` 명령어로 등록됩니다
 2. 등록된 작업은 `run_at_1am.py --execute`를 실행하여 BOOK.md 생성 + Git 푸시를 수행합니다
 
 > ⚠️ **주의**: `at` 명령어가 설치되어 있어야 합니다.
