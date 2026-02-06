@@ -1168,6 +1168,199 @@ def select_action(state):
 → Policy > Cache!
 ```
 
+### 🔄 학습 → 실행 → 캐싱의 흐름
+
+강화학습 시스템이 실무에 적용되는 3단계 과정을 이해해봅시다.
+
+#### 1단계: 학습 (train.py)
+**목표: 환경 적응력 획득**
+
+```python
+# train.py
+for episode in range(NUM_EPISODES):
+    env = GridEnvironment(random_map=True)  # 매번 다른 맵
+
+    # Policy Network만 사용 (캐시 없음)
+    action = agent.select_action(state, training=True)
+    reward, done = car.move(action, env)
+
+    # Q-Network 업데이트 (학습)
+    agent.train_network(state, action, reward, next_state, done)
+```
+
+**효과:**
+- 다양한 상황에서 학습
+- 일반화된 패턴 발견
+- **캐싱 없이 순수 학습**
+
+#### 2단계: 실행 (main.py without Cache)
+**목표: 반복하면서 효율적 경로 발견**
+
+```python
+# main.py (캐시 미사용)
+USE_CACHE = False
+
+# 같은 맵을 계속 실행
+env = GridEnvironment(random_map=False)  # 고정된 맵
+
+# 계속 Policy Network만 사용
+for step in range(1000):
+    action = agent.select_action(state, training=False)
+    reward, done = car.move(action, env)
+```
+
+**결과:**
+```
+Step 1-10: 여러 경로 시도 (Policy가 매번 계산)
+Step 11-20: 효율적 경로 발견 시작
+Step 21-50: 최적 경로 확립 (하지만 매번 Policy 계산)
+```
+
+**문제점:**
+- ⚠️ 같은 맵에서 같은 경로를 계속 실행
+- ⚠️ 매번 Policy Network 계산 (느림)
+- ⚠️ 이미 아는 경로인데 또 계산
+
+#### 3단계: 캐싱 (main.py with Cache)
+**목표: 경험을 활용하여 빠른 실행**
+
+```python
+# main.py (캐시 사용)
+USE_CACHE = True
+
+# 캐시 업데이트 (경험 메모)
+if USE_CACHE:
+    success = env.is_goal(car.x, car.y) or (not done)
+    agent.update_cache(state, action, success)
+
+# 실행 시 캐시 우선 확인
+action = agent.select_action(state, training=False)
+# → 캐시 히트 시: 즉시 반환 (빠름)
+# → 캐시 미스 시: Policy 계산 (느림)
+```
+
+**효과:**
+```
+Step 1-10: 캐시 없음, Policy 계산 (느림)
+Step 11-20: 일부 캐시 히트 (빨라짐)
+Step 21-50: 대부분 캐시 히트 (매우 빠름)
+Step 51+: 거의 모든 캐시 히트 (최고 속도)
+```
+
+**장점:**
+- ✅ 빠른 실행 (Policy 계산 생략)
+- ✅ 효율적 (같은 계산 반복 안함)
+- ✅ 성능 최적화
+
+#### ⚠️ 캐싱의 한계
+
+**문제 상황:**
+```python
+# 캐시를 믿고 실행
+env = GridEnvironment(random_map=False)  # 고정된 맵
+
+# 50스텝 실행 → 캐시 가득 참
+for step in range(50):
+    action = agent.select_action(state)  # 캐시 히트
+    # 잘 작동!
+
+# 동적 장애물 활성화 → 환경 변화!
+env = GridEnvironment(random_map=False, enable_dynamic_obstacles=True)
+
+for step in range(51, 100):
+    action = agent.select_action(state)  # 여전히 캐시 히트
+    reward, done = car.move(action, env)
+
+    if done:  # 벽에 충돌!
+        print("캐시가 잘못된 행동을 반환했습니다!")
+```
+
+**왜 실패?**
+```
+캐시는 과거 경험만 기억
+→ 새 장애물이 생긴 것을 모름
+→ 옛날 경로를 그대로 따라감
+→ 새 장애물에 충돌!
+```
+
+#### ✅ 해결 방법: Policy > Cache 원칙
+
+**v5의 해결:**
+```python
+def select_action(self, state, training=False):
+    # 1. Policy Network가 먼저 판단 (최우선)
+    with torch.no_grad():
+        q_values = self.policy_net(state)
+        policy_action = q_values.argmax().item()
+
+    # 2. 캐시는 참고만 (Policy와 일치 여부 확인)
+    if not training and self.use_cache:
+        cached_action = self.action_cache.get(state_key)
+
+        if cached_action is not None:
+            if cached_action == policy_action:
+                # ✅ Policy와 Cache 일치 → 안전
+                self.cache_stats['agreements'] += 1
+                return cached_action
+            else:
+                # ⚠️ Policy와 Cache 불일치 → Policy 우선
+                self.cache_stats['conflicts'] += 1
+                return policy_action  # Policy 선택!
+
+    # 3. 최종 결정은 항상 Policy
+    return policy_action
+```
+
+**효과:**
+```
+정적 환경 (장애물 없음):
+→ Policy와 Cache 일치
+→ Cache 히트 (빠름) ✅
+
+동적 환경 (새 장애물):
+→ Policy와 Cache 불일치
+→ Policy 선택 (안전) ✅
+
+→ Policy > Cache!
+```
+
+#### 💡 실무 적용
+
+**역할 분담:**
+```
+Policy Network (담임선생님):
+- 환경을 직접 관찰
+- 최종 결정권
+- 안전 보장
+
+Action Cache (학생 노트):
+- 과거 경험 기록
+- 참고 자료
+- 성능 최적화
+```
+
+**핵심 원칙:**
+1. **학습**: 캐시 없이 순수 학습
+2. **실행**: 캐시로 속도 향상
+3. **충돌**: Policy가 최종 결정 (Policy > Cache)
+
+**비유:**
+```
+학생(Agent)이 문제 풀이(Action):
+
+학습 단계:
+- 노트 없이 직접 생각하며 문제 풀이
+- 다양한 문제 풀어보며 원리 이해
+
+실행 단계:
+- 익숙한 문제는 노트 참고 (빠름)
+- 선생님도 확인하여 답 검증
+
+충돌 발생:
+- 노트(Cache)와 선생님(Policy) 의견 다름
+- 선생님 의견 따름 (Policy > Cache)
+```
+
 ### 🔧 v5의 동적 장애물 시스템
 
 **목적:**
