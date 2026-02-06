@@ -1,0 +1,6 @@
+{
+  "non_interactive": true,
+  "auto_confirm": true,
+  "quiet_mode": true,
+  "skip_prompts": true
+}
