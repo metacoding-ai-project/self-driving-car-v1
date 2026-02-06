@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# 가상환경
+venv/
+env/
+ENV/
+
+# PyTorch 모델
+*.pth
+*.pt
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# 로그 및 결과
+*.log
+training_results.png
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Claude
+.claude/

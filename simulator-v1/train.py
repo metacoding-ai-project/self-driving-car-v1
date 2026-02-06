@@ -1,0 +1,220 @@
+# train.py
+import pygame
+import numpy as np
+import matplotlib.pyplot as plt
+import random
+from environment import GridEnvironment
+from car import Car
+from agent import DQNAgent
+from config import CURRENT_SPEED, NUM_EPISODES, SHOW_TRAINING
+
+def train():
+    # 초기화
+    env = GridEnvironment()
+    start_x, start_y = env.start_pos
+    car = Car(start_x, start_y)  # 시작점에서 시작
+    agent = DQNAgent()
+
+    # 통계
+    episode_rewards = []
+    episode_lengths = []
+    recent_rewards = []
+    goal_reached_count = 0  # 목적지 도달 횟수
+
+    num_episodes = NUM_EPISODES
+
+    # 폰트 설정
+    font = pygame.font.Font(None, 30)
+    small_font = pygame.font.Font(None, 24)
+
+    print("=" * 50)
+    print("🚗 자율주행 강화학습 시뮬레이터 - 최적 경로 찾기")
+    print("=" * 50)
+    print(f"시작점: {env.start_pos} (노란색)")
+    print(f"목적지: {env.goal_pos} (초록색)")
+    print("훈련을 시작합니다!")
+    print("화면에서 자동차가 최적 경로를 학습하는 것을 실시간으로 볼 수 있습니다.")
+    print("ESC를 누르면 중간에 종료할 수 있습니다.")
+    print("=" * 50)
+
+    running = True
+
+    for episode in range(num_episodes):
+        if not running:
+            break
+
+        # 리셋 (시작점에서 시작, 항상 같은 방향 - 과적합 문제 발생)
+        car.reset(start_x, start_y)
+        state = env.get_state(car.x, car.y, car.direction)
+
+        episode_reward = 0
+        episode_length = 0
+        done = False
+        reached_goal = False
+
+        while not done and running:
+            # 이벤트 처리
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                    break
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        running = False
+                        break
+
+            # 행동 선택
+            action = agent.select_action(state, training=True)
+
+            # 행동 실행
+            reward, done = car.move(action, env)
+            next_state = env.get_state(car.x, car.y, car.direction)
+
+            # 목적지 도달 체크
+            if env.is_goal(car.x, car.y):
+                reached_goal = True
+
+            # 메모리에 저장
+            agent.memory.push(state, action, reward, next_state, done)
+
+            # 학습
+            loss = agent.train_step()
+
+            # 화면 표시 (SHOW_TRAINING이 True일 때만)
+            if SHOW_TRAINING:
+                env.draw(car)
+
+                # 학습 정보 표시
+                avg_reward = np.mean(recent_rewards[-20:]) if len(recent_rewards) > 0 else 0
+
+                # 상단 정보 패널 (반투명 배경)
+                info_surface = pygame.Surface((env.screen.get_width(), 120))
+                info_surface.set_alpha(200)
+                info_surface.fill((0, 0, 0))
+                env.screen.blit(info_surface, (0, 0))
+
+                # 텍스트 정보
+                y_offset = 10
+                texts = [
+                    f"Episode: {episode + 1}/{num_episodes}  |  Goal Reached: {goal_reached_count}",
+                    f"Score: {car.score:.1f}  |  Steps: {car.steps}",
+                    f"Epsilon: {agent.epsilon:.3f}  |  Avg Reward: {avg_reward:.1f}",
+                    f"Speed: {CURRENT_SPEED} FPS",
+                ]
+
+                for text in texts:
+                    text_surface = small_font.render(text, True, (255, 255, 255))
+                    env.screen.blit(text_surface, (10, y_offset))
+                    y_offset += 30
+
+                # 목적지 도달 시 축하 메시지
+                if reached_goal:
+                    congrats_text = font.render("🎉 GOAL!", True, (255, 255, 0))
+                    text_rect = congrats_text.get_rect(
+                        center=(env.screen.get_width() // 2, env.screen.get_height() // 2)
+                    )
+                    env.screen.blit(congrats_text, text_rect)
+
+                # 진행률 바
+                progress = (episode + 1) / num_episodes
+                bar_width = env.screen.get_width() - 20
+                bar_height = 20
+                bar_x = 10
+                bar_y = 95
+
+                # 배경 (회색)
+                pygame.draw.rect(env.screen, (50, 50, 50),
+                               (bar_x, bar_y, bar_width, bar_height))
+                # 진행률 (녹색)
+                pygame.draw.rect(env.screen, (0, 255, 0),
+                               (bar_x, bar_y, int(bar_width * progress), bar_height))
+                # 테두리
+                pygame.draw.rect(env.screen, (255, 255, 255),
+                               (bar_x, bar_y, bar_width, bar_height), 2)
+
+                pygame.display.flip()
+
+                # 속도 조절 (FPS) - config.py에서 설정!
+                env.clock.tick(CURRENT_SPEED)
+
+            state = next_state
+            episode_reward += reward
+            episode_length += 1
+
+        # 통계 기록
+        episode_rewards.append(episode_reward)
+        episode_lengths.append(episode_length)
+        recent_rewards.append(episode_reward)
+
+        # 목적지 도달 카운트
+        if reached_goal:
+            goal_reached_count += 1
+
+        # 콘솔 로그 출력
+        if episode % 10 == 0:
+            avg_reward = np.mean(episode_rewards[-10:]) if len(episode_rewards) >= 10 else episode_reward
+            avg_length = np.mean(episode_lengths[-10:]) if len(episode_lengths) >= 10 else episode_length
+            goal_str = "🎯" if reached_goal else "  "
+            print(f"Episode {episode:3d} {goal_str} | "
+                  f"Reward: {episode_reward:7.1f} | "
+                  f"Avg: {avg_reward:7.1f} | "
+                  f"Steps: {episode_length:4d} | "
+                  f"Goals: {goal_reached_count:3d} | "
+                  f"Epsilon: {agent.epsilon:.3f}")
+
+        # 모델 저장 (100 에피소드마다)
+        if episode % 100 == 0 and episode > 0:
+            agent.save(f"model_episode_{episode}.pth")
+            print(f"✅ 모델 저장: model_episode_{episode}.pth")
+
+    # 최종 모델 저장
+    if running:
+        agent.save("model_final.pth")
+        print("=" * 50)
+        print("✅ 훈련 완료! 최종 모델 저장됨: model_final.pth")
+        print("=" * 50)
+
+        # 결과 그래프
+        plot_results(episode_rewards, episode_lengths)
+    else:
+        print("=" * 50)
+        print("⚠️  훈련이 중단되었습니다.")
+        print("=" * 50)
+
+    pygame.quit()
+
+def plot_results(rewards, lengths):
+    """결과 시각화"""
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
+
+    # 보상 그래프
+    ax1.plot(rewards, alpha=0.3, label='Episode Reward', color='blue')
+    if len(rewards) >= 10:
+        moving_avg = np.convolve(rewards, np.ones(10)/10, mode='valid')
+        ax1.plot(range(9, len(rewards)), moving_avg, label='Moving Average (10)',
+                color='red', linewidth=2)
+    ax1.set_xlabel('Episode')
+    ax1.set_ylabel('Reward')
+    ax1.set_title('Training Rewards')
+    ax1.legend()
+    ax1.grid(True, alpha=0.3)
+
+    # 길이 그래프
+    ax2.plot(lengths, alpha=0.3, label='Episode Length', color='green')
+    if len(lengths) >= 10:
+        moving_avg = np.convolve(lengths, np.ones(10)/10, mode='valid')
+        ax2.plot(range(9, len(lengths)), moving_avg, label='Moving Average (10)',
+                color='red', linewidth=2)
+    ax2.set_xlabel('Episode')
+    ax2.set_ylabel('Steps')
+    ax2.set_title('Episode Lengths')
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig('training_results.png', dpi=150)
+    print("📊 그래프 저장: training_results.png")
+    plt.show()
+
+if __name__ == "__main__":
+    train()
