@@ -22,9 +22,13 @@
 
 ## 1단계: 패키지 설치
 
+**Python 버전:** Python 3.9 이상 권장 (현재 테스트: Python 3.14.2)
+
+> 📌 **Python 3.9 사용자**: `requirements.txt`가 Python 3.9 호환 버전으로 설정되어 있습니다.
+
 ```bash
 python -m pip install --upgrade pip
-python -m pip install pygame-ce numpy torch matplotlib
+python -m pip install -r requirements.txt
 ```
 
 > ⚠️ **Python 3.14**: `pygame` 대신 `pygame-ce` 사용
@@ -346,9 +350,12 @@ python_lab/
 
 # 🔧 필수 요구사항
 
-- Python 3.8+ (Python 3.14 권장)
-- pygame-ce (Python 3.14에서는 pygame 대신 pygame-ce 사용)
-- numpy, torch, matplotlib
+- **Python 3.9 이상**
+- pygame-ce 2.4.0 이상
+- numpy 1.21.0 이상
+- torch 1.9.0 이상
+- matplotlib 3.3.0 이상
+- gymnasium 0.28.0 이상
 
 ---
 
