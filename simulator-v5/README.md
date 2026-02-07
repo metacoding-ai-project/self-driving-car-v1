@@ -92,6 +92,87 @@
 
 → **Policy만이 현재 환경을 정확히 판단 가능**
 
+## 🧠 에이전트가 받는 정보 (상태 벡터)
+
+### 에이전트는 무엇을 알고 출발하는가?
+
+**중요**: 에이전트는 목적지의 **절대 좌표를 모릅니다**. 대신 **상대적 방향**만 알고 움직입니다.
+
+#### 상태 벡터 구성 (총 11차원)
+
+```python
+상태 = [
+    # 1. 주변 8칸 장애물 정보 (8차원)
+    wall_up_left, wall_up, wall_up_right,
+    wall_left,              wall_right,
+    wall_down_left, wall_down, wall_down_right,
+
+    # 2. 현재 방향 (1차원, 정규화)
+    direction / 4.0,  # 0=위, 1=오른쪽, 2=아래, 3=왼쪽
+
+    # 3. 목적지 상대 방향 (2차원, 정규화) ⭐ 핵심!
+    dx_to_goal / GRID_WIDTH,   # "목적지가 X축으로 저쪽"
+    dy_to_goal / GRID_HEIGHT   # "목적지가 Y축으로 저쪽"
+]
+```
+
+#### ❌ 에이전트가 모르는 것
+- 목적지의 절대 좌표 (goal_x, goal_y)
+- "목적지가 맵의 (50, 50)이다" 같은 숫자 정보
+- 전체 맵의 구조 (전지적 시점 불가)
+
+#### ✅ 에이전트가 아는 것
+- **현재 위치에서 목적지가 어느 방향인지** (상대 방향)
+  ```python
+  dx_to_goal = +0.5  # 오른쪽으로 가야 함
+  dy_to_goal = -0.3  # 위쪽으로 가야 함
+  ```
+- 주변 8칸의 장애물 위치
+- 현재 바라보는 방향
+
+#### 🎯 목적 자체는 알고 있는가?
+
+**네, 알고 있습니다!** (보상 설계를 통해)
+
+```python
+# 보상 설계
+if 목적지 도달:
+    reward = +100  # 큰 양의 보상
+elif 목적지에 가까워짐:
+    reward = +0.5  # 작은 양의 보상
+elif 충돌:
+    reward = -100  # 큰 음의 보상
+```
+
+에이전트는 이 보상을 통해:
+- "목적지에 도달하는 것이 좋다"
+- "목적지로 가까워지는 것이 좋다"
+- "충돌은 나쁘다"
+
+를 학습하므로, **목적 자체(목적지로 가는 것)는 알고 시작**합니다.
+
+#### 🤔 그럼 어떻게 움직이는가?
+
+**매 순간마다:**
+1. "지금 위치에서 목적지가 저쪽 방향이다" (상대 방향)
+2. "주변에 벽이 이렇게 있다" (장애물 정보)
+3. "직진/좌회전/우회전 중 어떤 게 좋을까?" (Policy 판단)
+4. 행동 실행
+5. 보상 받기 ("목적지에 가까워졌네!" or "충돌했네!")
+
+→ **"저 방향으로 가면 보상이 좋다"는 수준으로 학습하는 구조**
+
+#### 비유
+```
+❌ GPS 네비게이션 (절대 좌표)
+"서울시 강남구 테헤란로 123번지로 가세요"
+
+✅ 나침반 (상대 방향)
+"목적지가 북동쪽 방향입니다. 주변 장애물을 피하며 그쪽으로 가세요"
+```
+
+---
+
 ## ✨ 주요 특징
 
 ### 1. 캐싱 시스템 (NEW!) ⭐
@@ -123,7 +204,100 @@ if USE_CACHE:
     agent.update_cache(state, action, success)  # ✅ 경험 메모
 ```
 
-#### 캐시 통계:
+#### ⚠️ 현재 코드 구조와 실무 차이 (중요!)
+
+**현재 코드 (교육용 설계):**
+```python
+# agent.py - select_action 메서드
+def select_action(self, state, training=False):
+    # 1. Policy 먼저 계산 (항상 실행!)
+    policy_action = self._compute_policy_action(state)  # 45ms
+
+    # 2. 캐시 확인
+    cached_action = self.cache.get(state)  # 1ms
+
+    # 3. Policy 우선
+    if cached_action is not None and cached_action == policy_action:
+        # 일치하면 캐시 히트로 기록
+        self.cache_hits += 1
+
+    return policy_action  # Policy가 최종 결정
+```
+
+**문제점:**
+- Policy를 **항상 계산**하므로 속도 향상이 없음 (45ms 고정)
+- 캐시를 확인해도 Policy 계산을 스킵하지 않음
+
+**왜 이렇게 설계했나요?**
+
+→ **교육 목적: 정적 환경과 동적 환경 두 가지를 모두 보여주기 위해!**
+
+#### 🎯 환경에 따른 사용법
+
+**1️⃣ 정적 환경 (장애물 고정) → 캐시 우선 코드로 수정**
+
+실무에서 맵이 변하지 않는 환경이라면:
+
+```python
+# 실무 버전 1: 캐시 우선 (속도 최적화)
+def select_action_static(self, state, training=False):
+    # 1. 캐시 먼저 확인
+    cached_action = self.cache.get(state)
+    if cached_action is not None:
+        return cached_action  # 12ms (캐시 히트!)
+
+    # 2. 캐시 미스 시에만 Policy 계산
+    policy_action = self._compute_policy_action(state)  # 45ms
+
+    # 3. 캐시 저장
+    self.cache.store(state, policy_action)
+
+    return policy_action
+
+# 속도: 12ms (캐시 히트율 67% 가정)
+```
+
+**장점:**
+- **3.75배 빠름** (45ms → 12ms)
+- 정적 환경에서 최적
+- 창고 로봇, 공장 AGV 등에 적합
+
+**단점:**
+- 환경 변화 시 대응 불가
+- 동적 장애물 등장하면 충돌 위험
+
+**2️⃣ 동적 환경 (장애물 변화) → Policy 우선 (현재 코드)**
+
+실무에서 환경이 계속 변하는 경우:
+
+```python
+# 실무 버전 2: Policy 우선 (안전 보장)
+def select_action_dynamic(self, state, training=False):
+    # 1. Policy 먼저 계산 (현재 환경 실시간 판단)
+    policy_action = self._compute_policy_action(state)  # 45ms
+
+    # 2. 캐시는 힌트로만 사용
+    cached_action = self.cache.get(state)
+    if cached_action is not None and cached_action != policy_action:
+        # 충돌 감지: 환경이 변했음!
+        self.cache.invalidate(state)  # 캐시 무효화
+
+    # 3. Policy가 최종 결정
+    return policy_action
+
+# 속도: 45ms (안전 우선)
+```
+
+**장점:**
+- 환경 변화에 즉시 대응
+- 안전성 보장
+- 사람이 다니는 공간, 동적 환경에 적합
+
+**단점:**
+- 속도 이점 없음
+- 캐시는 통계/디버깅 용도
+
+#### 📊 캐시 통계
 
 **화면 표시 (USE_CACHE=True일 때):**
 ```
@@ -138,9 +312,48 @@ if USE_CACHE:
 
 **해석:**
 ```
-Agreements가 높으면: Policy와 캐시가 일치 → 안정적
-Conflicts가 높으면: 환경이 동적으로 변함 → Policy가 적응 중
+Agreements가 높으면: Policy와 캐시가 일치 → 정적 환경, 캐시 우선 가능
+Conflicts가 높으면: 환경이 동적으로 변함 → Policy 우선 필수
 ```
+
+#### 🏭 실무 적용 예시
+
+| 환경 | 코드 전략 | 속도 | 안전성 | 예시 |
+|------|----------|------|--------|------|
+| **정적** | 캐시 우선 | 12ms ⚡ | 보통 | 창고 로봇, 공장 AGV |
+| **준동적** | 하이브리드 | 25ms | 높음 | 사무실 청소 로봇 |
+| **동적** | Policy 우선 | 45ms | 매우 높음 | 사람 많은 공간 |
+
+**하이브리드 전략 (권장):**
+```python
+def select_action_hybrid(self, state, training=False):
+    cached_action = self.cache.get(state)
+
+    # 캐시 신뢰도가 높으면 캐시 사용
+    if cached_action is not None and self.cache.confidence(state) > 0.9:
+        return cached_action  # 빠름
+
+    # 신뢰도 낮으면 Policy 확인
+    policy_action = self._compute_policy_action(state)
+
+    # 불일치 시 캐시 무효화
+    if cached_action is not None and cached_action != policy_action:
+        self.cache.invalidate(state)
+
+    return policy_action
+```
+
+#### 💡 핵심 정리
+
+**현재 v5 코드:**
+- **교육용 설계**: 정적 환경과 동적 환경을 모두 이해하기 위한 구조
+- Policy를 항상 계산하여 두 가지 상황을 모두 관찰 가능
+- 실무에서는 환경에 따라 코드 수정 필요
+
+**실무 적용:**
+- **정적 환경**: 캐시 먼저 확인 → 속도 3.75배 향상
+- **동적 환경**: Policy 먼저 계산 → 안전성 보장
+- **하이브리드**: 신뢰도 기반 선택 → 속도와 안전성 균형
 
 ### 2. 동적 장애물 시스템 (NEW!) ⚡
 
