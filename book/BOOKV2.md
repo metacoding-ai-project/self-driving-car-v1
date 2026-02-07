@@ -944,13 +944,14 @@ v4 (동적):
 
 메타코딩: "또 뭔가 있나요?" 😅
 
-팀장님: "실제 현장에서는 예상치 못한 일이 생길 수 있어요.
-        예를 들어, 청소 중에 갑자기 사람이 지나간다거나,
-        장애물이 생긴다거나... 그런 상황도 대처할 수 있나요?"
+팀장님: "실제 제품은 같은 공간에서 반복해서 작동하잖아요.
+        매번 신경망을 계산하는 게 배터리 낭비 아닐까요?"
 
-메타코딩: "아... 동적으로 변하는 환경이요?"
+메타코딩: "아... 추론(Inference) 속도 최적화요?"
 
-팀장님: "네, 확인해볼래요?"
+팀장님: "네, 같은 환경에서는 더 빠르게 실행할 방법이 있을까요?"
+
+메타코딩: "음... 생각해보겠습니다!"
 
 ### 📝 정리
 
@@ -967,135 +968,51 @@ v4 (동적):
 
 ---
 
-## 5화: 현장의 예상치 못한 변수 (v5)
+## 5화: 추론 속도를 더 빠르게! (v5)
 
 ### 📅 5주차
 
-메타코딩은 고민에 빠졌습니다.
+메타코딩은 v4를 완성하고 뿌듯해했습니다.
 
-"동적으로 변하는 환경... 어떻게 시뮬레이션하지?"
-
-### 💡 아이디어: 동적 장애물
-
-"청소하는 중에 갑자기 사람이 지나가는 것처럼,
-장애물이 갑자기 나타났다 사라지게 하면 어떨까?"
-
-### 🔧 환경 수정
-
-`simulator-v5` 폴더를 만들었습니다.
-
-**config.py 수정:**
-```python
-# v5 신기능: 동적 장애물
-ENABLE_DYNAMIC_OBSTACLES = True  # 동적 장애물 활성화!
-OBSTACLE_SPAWN_INTERVAL = 50     # 50스텝마다 생성
-OBSTACLE_LIFETIME = 30            # 30스텝 후 사라짐
-```
-
-**environment.py 수정:**
-```python
-class GridEnvironment:
-    def __init__(self, enable_dynamic_obstacles=False):
-        # ...
-        self.dynamic_obstacles = []  # 동적 장애물 리스트
-
-    def update_dynamic_obstacles(self):
-        """동적 장애물 업데이트"""
-        # 50스텝마다 새 장애물 생성
-        if self.step_count % 50 == 0:
-            x, y = self._get_random_pos()
-            self.dynamic_obstacles.append([x, y, 30])  # 수명 30
-
-        # 수명 감소
-        for obstacle in self.dynamic_obstacles:
-            obstacle[2] -= 1  # 수명 -1
-            if obstacle[2] <= 0:
-                self.dynamic_obstacles.remove(obstacle)  # 제거!
-```
-
-### 🎮 첫 번째 테스트
-
-```bash
-cd simulator-v5
-# 학습은 v4와 동일하게 (동적 장애물 없이)
-python train.py
-
-# 테스트는 동적 장애물 활성화!
-python main.py
-```
-
-**config.py 설정:**
-```python
-ENABLE_DYNAMIC_OBSTACLES = True
-```
-
-**결과:**
-```
-Step 1-50: 잘 작동함
-Step 51: 새로운 장애물 등장!
-Step 52: 충돌! ❌
-
-Success Rate: 30% (68% → 30%로 떨어짐!)
-```
-
-"아... 새로운 장애물에 대처를 못 하네..."
-
-### 🤔 왜 실패했을까?
-
-메타코딩은 곰곰이 생각해봤습니다.
-
-"학습할 때는 장애물이 고정되어 있었어.
-그래서 '이 위치에는 벽이 있으니까 피해야지'라고 배웠지.
-
-하지만 테스트할 때는 장애물이 계속 생기고 사라져.
-AI는 혼란스러울 거야..."
+"좋아! 학습도 빠르고, 성능도 좋고... 이제 끝난 건가?"
 
 ### 💭 선배의 조언
 
-선배를 다시 찾아갔습니다.
+선배 개발자를 만났습니다.
 
-메타코딩: "선배님, AI가 학습한 것과 다른 상황이 되면
-          어떻게 대처해야 해요?"
+선배: "메타코딩 씨, 학습은 한 번만 하면 되잖아요? 그런데 추론(Inference)은 매번 해야 하죠."
 
-선배: "음... 그럴 때는 두 가지 방법이 있어요."
+메타코딩: "네? 무슨 말씀이세요?"
 
-**방법 1: 동적 환경에서 다시 학습**
-```python
-# train.py
-env = GridEnvironment(enable_dynamic_obstacles=True)
-# 동적 장애물이 있는 환경에서 학습
+선배: "같은 맵에서 계속 실행할 때를 생각해봐요. 매번 Policy Network를 계산하는 게 비효율적이지 않을까요?"
+
+### 💡 아이디어: 캐싱!
+
+메타코딩은 생각했습니다.
+
+"그러고 보니... 같은 맵에서 계속 실행하면 비슷한 경로로 가는데,
+매번 신경망 계산(45ms)을 하는 게 낭비 아닐까?
+
+성공한 경로를 캐싱해두면 빠르지 않을까?"
+
+**비유:**
+```
+내비게이션이:
+- 매번 경로 계산 (느림) ❌
+vs
+- 자주 가는 길은 저장 (빠름) ✅
 ```
 
-메타코딩: "그럼 학습 시간이 더 오래 걸리지 않나요?"
+### 🔧 캐싱 시스템 구현
 
-선배: "맞아요. 그래서 방법 2가 있죠."
-
-**방법 2: Policy > Cache 원칙**
-
-선배: "AI한테 두 가지 능력을 주는 거예요."
-
-```
-Policy Network (정책 네트워크):
-- 실시간으로 환경을 보고 판단
-- 항상 최신 상태 반영
-
-Action Cache (행동 캐시):
-- 과거 경험 기록
-- 빠른 실행
-```
-
-### 🔧 Cache 시스템 구현
-
-메타코딩은 새로운 시스템을 만들기 시작했습니다.
+`simulator-v5` 폴더를 만들었습니다.
 
 **agent.py에 ActionCache 추가:**
 ```python
 class ActionCache:
-    """
-    과거 경험을 저장하는 캐시
-    """
+    """성공한 경험을 캐싱하는 시스템"""
     def __init__(self):
-        self.cache = {}  # 상태 → 행동
+        self.cache = {}  # 상태 → 행동 매핑
 
     def get(self, state):
         """캐시에서 행동 가져오기"""
@@ -1111,20 +1028,107 @@ class ActionCache:
             self.cache[state_key] = {'action': action}
 ```
 
-**핵심: Policy > Cache 원칙**
+**config.py 설정:**
+```python
+# v5 신기능: 캐싱 시스템
+USE_CACHE = True  # 캐시 활성화!
+```
+
+### 🎮 첫 번째 테스트
+
+```bash
+cd simulator-v5
+# 학습은 v4와 동일하게
+python train.py
+
+# 테스트는 캐시 활성화!
+python main.py
+```
+
+**같은 맵에서 반복 실행:**
+```
+Step 1-10: Policy 계산 (45ms), 캐시 비어있음
+Step 11-20: Policy 계산 + 캐시 쌓이기 시작
+Step 21-50: 대부분 캐시 히트! (예상: 12ms로 빨라질 것)
+```
+
+**결과:**
+```
+음... 속도가 안 빨라지네? 🤔
+```
+
+메타코딩: "어? 캐시를 사용하는데 왜 느리지?"
+
+### 🤔 선배의 설명
+
+선배를 찾아갔습니다.
+
+메타코딩: "선배님, 캐시를 만들었는데 속도가 안 빨라져요!"
+
+선배: "아, 그건 의도한 거예요. 현재 v5는 **교육용** 코드거든요."
+
+메타코딩: "네? 교육용이요?"
+
+### 💡 두 가지 전략: 정적 vs 동적
+
+선배가 설명해줬습니다.
+
+"실무에서는 환경에 따라 두 가지 전략이 필요해요."
+
+**전략 1: 정적 환경 (장애물 고정)**
+```python
+# 공장, 창고 등 고정된 환경
+def select_action(state):
+    # Cache를 먼저 확인! (빠름)
+    if cache.has(state):
+        return cache.get(state)  # 12ms ✅
+
+    # Cache에 없으면 Policy 계산
+    return policy_net(state).argmax()  # 45ms
+```
+
+**효과:**
+- 캐시 히트: 12ms (3.75배 빠름!)
+- 빠른 실행
+
+**전략 2: 동적 환경 (장애물 변화)**
+```python
+# 사람 많은 곳, 변화하는 환경
+def select_action(state):
+    # 항상 Policy 먼저! (안전)
+    policy_action = policy_net(state).argmax()  # 45ms
+    return policy_action  # ✅
+
+    # Cache는 참고만 (또는 무시)
+```
+
+**효과:**
+- 항상 최신 상태 반영
+- 안전한 실행
+
+메타코딩: "아하! 그럼 v5는 두 전략을 모두 보여주는 교육용 코드구나!"
+
+선배: "맞아요! 현재 v5는 항상 Policy를 계산해서 안전성을 보장하고,
+      Cache는 Policy와 일치하는지 확인만 해요."
+
+### 🔧 Policy > Cache 원칙 구현
+
+선배: "현재 v5 코드는 교육용이에요. 이해를 돕기 위해 항상 Policy를 먼저 계산하죠."
+
+**현재 v5 코드 (교육용):**
 ```python
 class DQNAgent:
     def select_action(self, state, training=False):
         # 1️⃣ Policy가 먼저 판단! (항상 실행!)
-        policy_action = self.policy_net(state).argmax()
+        policy_action = self.policy_net(state).argmax()  # 45ms
 
         # 2️⃣ 캐시 확인 (참고만)
         if self.use_cache:
-            cached_action = self.cache.get(state)
+            cached_action = self.cache.get(state)  # 1ms
 
             if cached_action is not None:
                 if cached_action == policy_action:
-                    # ✅ 일치: 캐시 활용 (빠름)
+                    # ✅ 일치: 안전
                     return policy_action
                 else:
                     # ⚠️ 불일치: Policy 우선! (안전)
@@ -1133,6 +1137,14 @@ class DQNAgent:
         # 3️⃣ 최종 결정은 항상 Policy
         return policy_action
 ```
+
+**결과:**
+- 항상 45ms 소요 (캐시 사용해도!)
+- 왜? Policy를 항상 먼저 계산하니까!
+
+메타코딩: "그럼 실전에서는 어떻게 하나요?"
+
+선배: "환경에 따라 다르게 구현해요!"
 
 ### 💡 비유로 이해하기
 
@@ -1157,136 +1169,119 @@ Policy > Cache:
 → 운전자(Policy) 판단 우선! ✅
 ```
 
-### 🤔 잠깐, 그런데 왜 느리지?
+### 🧪 캐싱의 한계 테스트 (동적 장애물)
 
-메타코딩이 코드를 실행해보니 이상한 점을 발견했습니다.
+메타코딩: "그럼 캐싱의 한계를 직접 보고 싶은데요?"
 
-"어? 캐시를 사용해도 속도가 안 빨라지네?"
+선배: "좋은 생각이에요! 동적 장애물 시스템으로 테스트해봅시다."
 
-선배: "아, 그건 의도한 거예요!"
+#### 동적 장애물 시스템 추가
 
-메타코딩: "네? 의도요?"
-
-#### 현재 v5 코드의 설계 (교육용)
-
-선배가 화면을 보여줬습니다.
-
+**config.py 설정:**
 ```python
-def select_action(self, state):
-    # 1. 항상 Policy 먼저 계산 (45ms 소요)
-    policy_action = self.policy_net(state).argmax()
-
-    # 2. 그 다음 Cache 확인 (1ms)
-    cached_action = self.cache.get(state)
-
-    # 3. 비교만 하고 Policy 반환
-    return policy_action
+# 캐싱 한계 테스트용
+ENABLE_DYNAMIC_OBSTACLES = True  # 동적 장애물 활성화
+OBSTACLE_SPAWN_INTERVAL = 50     # 50스텝마다 생성
+OBSTACLE_LIFETIME = 30            # 30스텝 후 사라짐
 ```
 
-**결과:** 항상 45ms 걸림 (캐시 사용해도!)
-
-#### 왜 이렇게 만들었나요?
-
-선배: "이건 교육용 코드예요. 두 가지 전략을 **이해하기 위해** 이렇게 만든 거죠!"
-
-**교육 목적: 정적 환경과 동적 환경 모두 보여주기!**
-
-#### 실무에서는 어떻게 할까?
-
-선배가 두 가지 전략을 설명해줬습니다.
-
-**전략 1: 정적 환경 (Static Environment)**
+**environment.py에 추가:**
 ```python
-# 장애물이 안 바뀌는 환경 (예: 고정된 공장)
+class GridEnvironment:
+    def update_dynamic_obstacles(self):
+        """동적 장애물 업데이트"""
+        # 50스텝마다 새 장애물 생성
+        if self.step_count % 50 == 0:
+            x, y = self._get_random_pos()
+            self.dynamic_obstacles.append([x, y, 30])  # 수명 30
 
-def select_action(state):
-    # Cache를 먼저 확인!
-    if cache.has(state):
-        return cache.get(state)  # 12ms! (빠름!) ✅
-
-    # Cache에 없으면 Policy 계산
-    return policy_net(state).argmax()  # 45ms
+        # 수명 감소
+        for obstacle in self.dynamic_obstacles:
+            obstacle[2] -= 1
+            if obstacle[2] <= 0:
+                self.dynamic_obstacles.remove(obstacle)
 ```
 
-**효과:**
-```
-매번 같은 맵:
-- 처음 10번: Policy 계산 (45ms × 10 = 450ms)
-- 나머지 90번: Cache 사용 (12ms × 90 = 1,080ms)
-- 총 시간: 1,530ms
+#### 테스트 시나리오
 
-→ Cache 없으면: 45ms × 100 = 4,500ms
-→ 3배 빠름! 🚀
-```
+선배: "이제 두 가지를 비교해봅시다."
 
-**전략 2: 동적 환경 (Dynamic Environment)**
-```python
-# 장애물이 계속 바뀌는 환경 (예: 사람들이 많은 곳)
+**시나리오 1: 정적 환경 (장애물 없음)**
+```bash
+# config.py
+ENABLE_DYNAMIC_OBSTACLES = False
 
-def select_action(state):
-    # 항상 Policy 먼저!
-    policy_action = policy_net(state).argmax()  # 45ms
-    return policy_action  # 안전! ✅
-
-    # Cache는 참고만 (또는 무시)
+python main.py
 ```
 
-**효과:**
+**결과:**
 ```
-장애물이 계속 생김:
-- Cache: 옛날 정보 (위험!)
-- Policy: 최신 정보 (안전!)
-
-→ 느려도 Policy 사용!
+Policy와 Cache 일치
+→ 캐시 활용 가능
+→ 정적 환경에서는 캐싱 효과적!
+Success Rate: 73%
 ```
 
-#### 환경별 전략 비교
+**시나리오 2: 동적 환경 (장애물 생김)**
+```bash
+# config.py
+ENABLE_DYNAMIC_OBSTACLES = True
 
-메타코딩이 표로 정리했습니다.
+python main.py
+```
 
-| 환경 타입 | 전략 | 평균 시간 | 장점 | 단점 |
-|----------|------|----------|------|------|
-| **정적 환경** | Cache 먼저 | 12ms | 빠름 🚀 | 환경 변화 시 위험 |
-| **동적 환경** | Policy 먼저 | 45ms | 안전 ✅ | 느림 |
-| **v5 (교육용)** | 항상 Policy | 45ms | 두 전략 이해 | - |
+**결과:**
+```
+Step 1-50: 잘 작동함
+Step 51: 새로운 장애물 등장! (오렌지색)
+
+만약 캐시만 믿었다면?
+→ 옛날 경로를 그대로 따라감
+→ 새 장애물에 충돌! ❌
+
+하지만 Policy 우선이므로:
+→ 실시간으로 장애물 감지
+→ 우회 경로 선택
+→ 안전하게 회피! ✅
+
+Success Rate: 65% (캐시만: 30%)
+```
 
 #### 💡 메타코딩의 깨달음
 
 ```
 아하! 이제 이해했어!
 
-현재 v5 = 교육용 "느린" 코드
-→ Policy > Cache 원칙을 배우기 위해
-→ 속도보다 이해가 목적!
+캐싱의 목적:
+→ 정적 환경에서 빠른 실행
+→ 같은 맵을 반복할 때 효율적
 
-실무 적용 시:
-→ 정적 환경: Cache 먼저 (빠름)
-→ 동적 환경: Policy 먼저 (안전)
+캐싱의 한계:
+→ 동적 환경에서는 위험
+→ Policy가 최종 판단해야 함
+
+Policy > Cache:
+→ 캐시는 도구일 뿐
+→ Policy가 최종 결정권
 ```
 
 **비유:**
 ```
-교육용 v5 = 운전 학원 🚗
-- 강사가 항상 옆에서 확인
-- 안전하지만 느림
-- 두 가지 방법을 모두 배움
+정적 환경 = 매일 같은 출근길
+→ 네비 저장된 경로 (빠름)
 
-실무 정적 = 고속도로 🛣️
-- 네비만 보고 빠르게
-- 빠르지만 고정된 경로
-
-실무 동적 = 시내 주행 🏙️
-- 항상 눈으로 확인
-- 느리지만 안전
+동적 환경 = 공사 많은 도로
+→ 눈으로 직접 확인 (안전)
 ```
 
-선배: "이해했죠? 실전에서는 환경에 맞게 전략을 바꿔야 해요!"
+메타코딩: "V5는 속도 최적화를 위한 캐싱이 목적이고,
+           동적 장애물은 캐싱의 한계를 보여주는 거네요!"
 
-메타코딩: "네! 이제 확실히 이해했어요!"
+선배: "정확해요! 이제 완벽하게 이해했네요!"
 
 ---
 
-### 🎮 다시 테스트!
+### 🎮 최종 테스트!
 
 **main.py 수정:**
 ```python
@@ -1294,33 +1289,35 @@ def select_action(state):
 USE_CACHE = True
 
 while running:
-    # 1. Policy 먼저 판단
+    # 1. Policy 판단
     action = agent.select_action(state)
 
-    # 2. 동적 장애물 업데이트 (환경 변화!)
-    env.update_dynamic_obstacles()
-
-    # 3. 행동 실행
+    # 2. 행동 실행
     reward, done = car.move(action, env)
 
-    # 4. 성공한 경로만 캐시에 저장
+    # 3. 성공한 경로만 캐시에 저장
     if USE_CACHE:
         success = env.is_goal(car.x, car.y) or (not done)
         agent.update_cache(state, action, success)
+
+    # 4. 동적 장애물 테스트 (선택적)
+    if ENABLE_DYNAMIC_OBSTACLES:
+        env.update_dynamic_obstacles()
 ```
 
 **결과:**
 ```
 정적 환경 (장애물 없음):
 - Policy와 Cache 일치
-- Cache 히트! (빠름)
+- 캐시 활용 가능
+- 실전에서는 12ms로 빠른 실행 가능!
 - Success Rate: 73%
 
-동적 환경 (장애물 등장):
-- Policy와 Cache 불일치 감지!
-- Policy 선택! (안전)
-- 새 장애물 회피 성공!
-- Success Rate: 65% (30% → 65% 개선!)
+동적 환경 (장애물 생김):
+- Policy와 Cache 불일치 감지
+- Policy 우선 (안전)
+- 새 장애물 회피 성공
+- Success Rate: 65%
 ```
 
 ### 📊 Cache 통계
@@ -1330,48 +1327,53 @@ while running:
 ```
 📦 Cache: Size=350 | Hits=142 | Agreements=89 | Conflicts=8
 
-Agreements: Policy와 Cache가 일치 (89번)
-→ 환경이 안정적, 캐시 활용 (빠름)
+정적 환경:
+→ Agreements 많음 (89번)
+→ 캐시 활용 효과적
 
-Conflicts: Policy와 Cache가 불일치 (8번)
-→ 새 장애물 등장, Policy 우선 (안전)
+동적 환경:
+→ Conflicts 발생 (8번)
+→ Policy가 안전하게 대응
 ```
 
 ### 💼 최종 보고
 
 메타코딩은 자신감 있게 팀장님을 찾아갔습니다.
 
-메타코딩: "동적 환경에서도 작동하도록 개선했습니다!"
+메타코딩: "추론 속도를 최적화했습니다!"
 
 팀장님: "오! 어떻게 했어요?"
 
-메타코딩: "Policy > Cache 원칙을 적용했습니다.
-          실시간 판단을 최우선으로 하고,
-          과거 경험은 참고만 합니다."
+메타코딩: "캐싱 시스템을 추가했습니다.
+          정적 환경에서는 캐시로 빠른 실행,
+          동적 환경에서는 Policy로 안전성 보장합니다!"
 
 팀장님이 여러 시나리오를 테스트했습니다.
 
-**테스트 1: 정적 환경**
+**테스트 1: 정적 환경 (같은 맵 반복)**
 ```
-🚗: "평소 길로 가면 되겠네 (Cache 활용)"
-Result: ✅ 빠르고 정확
+🚗: "캐시를 활용하면 빠르게 실행 가능!"
+Result: ✅ 빠르고 효율적
+        실전에서는 3.75배 빠름 가능
 ```
 
-**테스트 2: 동적 장애물**
+**테스트 2: 동적 환경 (장애물 생김)**
 ```
-🚗: "어? 새로운 장애물! (Policy 판단)"
-🚗: "우회해야겠다 (Cache 무시)"
+🚗: "어? 새로운 장애물! (Policy 감지)"
+🚗: "우회해야겠다 (Policy 우선)"
 Result: ✅ 안전하게 회피
 ```
 
 **테스트 3: 완전히 새로운 맵**
 ```
 🚗: "처음 보는 맵이네 (Cache 비어있음)"
-🚗: "Policy만 사용하자 (학습한 능력 활용)"
+🚗: "Policy로 판단하자 (학습한 능력 활용)"
 Result: ✅ 성공적으로 도달
 ```
 
-팀장님: "완벽해요! 이제 제품화할 수 있겠어요!"
+팀장님: "좋아요! 정적 환경에서는 빠르고,
+        동적 환경에서도 안전하네요!
+        이제 제품화할 수 있겠어요!"
 
 ### 🎉 프로젝트 성공!
 
@@ -1379,8 +1381,9 @@ Result: ✅ 성공적으로 도달
 
 **최종 성능:**
 - 새로운 맵 성공률: 73%
-- 동적 장애물 대응: 65%
-- 학습 속도: 25% 향상
+- 학습 속도: 25% 향상 (v4)
+- 추론 속도: 3.75배 빠름 가능 (v5, 정적 환경)
+- 동적 환경 안전성: Policy > Cache 원칙으로 보장
 - 현장 적용 가능!
 
 ---
@@ -1544,60 +1547,64 @@ v4: 1500 에피소드에서 목표 달성
 
 ---
 
-### 🎯 5화에서 배운 것: 현실 대응
+### 🎯 5화에서 배운 것: 추론 속도 최적화
 
-**문제:**
+**목표:**
 ```
-정적 환경 (고정된 맵):
-→ 73% 성공
-
-동적 환경 (변하는 맵):
-→ 30% 성공 (실패!)
+같은 맵에서 반복 실행 시:
+→ 매번 Policy 계산 (느림)
+→ 캐싱으로 빠르게 실행!
 ```
 
-**해결: Policy > Cache 원칙**
+**해결: 캐싱 시스템 + Policy > Cache 원칙**
 ```
-Policy Network (정책):
-- 실시간으로 환경 관찰
-- 항상 최신 상태 반영
-- 최종 결정권
-
 Action Cache (캐시):
-- 과거 경험 기록
-- 빠른 실행
-- 참고 자료일 뿐
+- 성공한 경로 저장
+- 빠른 실행 (12ms)
+- 정적 환경에서 효과적
+
+Policy Network (정책):
+- 실시간 환경 관찰
+- 최종 결정권
+- 동적 환경에서 필수
 ```
 
 **비유:**
 ```
+Cache = 네비게이션 📱
+- 자주 가는 길 저장
+- 빠른 경로 안내
+
 Policy = 운전자 👨‍✈️
 - 눈으로 직접 확인
 - 최종 판단
 
-Cache = 네비게이션 📱
-- 평소 다니던 길 기억
-- 빠른 경로 제안
+정적 환경 (매일 같은 출근길):
+네비: "저장된 경로로 가세요" (빠름)
+→ Cache 활용! ✅
 
-Policy > Cache:
-네비: "직진"
-운전자: "공사중! 우회!"
-→ 운전자 판단 우선!
+동적 환경 (공사 중인 도로):
+네비: "저장된 경로로..." (옛날 정보)
+운전자: "공사중! 우회!" (현재 상태)
+→ Policy 우선! ✅
 ```
 
 **효과:**
 ```
 정적 환경:
-- Policy와 Cache 일치
-- Cache 활용 (빠름)
+- 캐시 활용
+- 3.75배 빠름 가능!
 
 동적 환경:
-- Policy와 Cache 불일치
-- Policy 우선 (안전)
+- Policy 우선
+- 안전성 보장
 ```
 
 **핵심 교훈:**
-- 캐시는 도구일 뿐, 판단은 Policy가!
-- 실시간 관찰이 최우선!
+- 추론 시 캐싱으로 성능 최적화!
+- 환경에 따라 전략 선택!
+- 정적 환경: 캐시 우선 (빠름)
+- 동적 환경: Policy 우선 (안전)
 
 ---
 
