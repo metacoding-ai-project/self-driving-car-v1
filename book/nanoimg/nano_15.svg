@@ -1,0 +1,26 @@
+<svg width="600" height="300" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100%" height="100%" fill="#f8f9fa"/>
+  <text x="300" y="30" font-family="Arial" font-size="20" font-weight="bold" text-anchor="middle" fill="#333">🎯 0화: 규칙 기반 (if문) 주행 전략</text>
+  
+  <rect x="50" y="50" width="500" height="180" rx="10" fill="#fff" stroke="#333" stroke-width="2"/>
+  
+  <!-- 단순 미로 주행 표현 -->
+  <g transform="translate(100, 80)">
+    <rect width="400" height="120" fill="#eee" opacity="0.5"/>
+    <text x="10" y="30" font-size="20">🟡</text>
+    <path d="M 40 25 L 300 25 L 300 100 L 350 100" fill="none" stroke="#007bff" stroke-width="3" stroke-dasharray="5,5" marker-end="url(#arrow)"/>
+    <text x="360" y="105" font-size="20">🟩</text>
+    
+    <rect x="50" y="40" width="200" height="20" fill="#dc3545"/>
+    <rect x="200" y="80" width="80" height="20" fill="#dc3545"/>
+  </g>
+  
+  <text x="300" y="260" font-family="Arial" font-size="14" font-weight="bold" text-anchor="middle" fill="#007bff">전략: "목적지 방향으로 if 문 이동!"</text>
+  <text x="300" y="285" font-family="Arial" font-size="12" text-anchor="middle" fill="#dc3545">단점: 복잡한 미로에서는 뱅뱅 돌며 갇힘 (국소 최적화)</text>
+  
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#007bff"/>
+    </marker>
+  </defs>
+</svg>

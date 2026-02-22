@@ -1,0 +1,26 @@
+<svg width="600" height="300" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100%" height="100%" fill="#ffffff"/>
+  
+  <!-- ReLU -->
+  <g transform="translate(50, 50)">
+    <text x="100" y="20" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle">ReLU (Rectified Linear Unit)</text>
+    <line x1="0" y1="150" x2="200" y2="150" stroke="#ccc" stroke-width="1"/>
+    <line x1="100" y1="50" x2="100" y2="200" stroke="#ccc" stroke-width="1"/>
+    
+    <path d="M 0 150 L 100 150 L 180 50" fill="none" stroke="#007bff" stroke-width="3"/>
+    <text x="150" y="170" font-family="Arial" font-size="12" fill="#007bff">음수면 0, 양수면 그대로</text>
+  </g>
+  
+  <!-- Sigmoid -->
+  <g transform="translate(350, 50)">
+    <text x="100" y="20" font-family="Arial" font-size="16" font-weight="bold" text-anchor="middle">Sigmoid (시그모이드)</text>
+    <line x1="0" y1="150" x2="200" y2="150" stroke="#ccc" stroke-width="1"/>
+    <line x1="100" y1="50" x2="100" y2="200" stroke="#ccc" stroke-width="1"/>
+    
+    <path d="M 20 190 C 80 190, 120 60, 180 60" fill="none" stroke="#28a745" stroke-width="3"/>
+    <text x="150" y="170" font-family="Arial" font-size="12" fill="#28a745">0과 1 사이 확률로 압축</text>
+    <text x="80" y="60" font-family="Arial" font-size="10" fill="#666">1.0</text>
+    <text x="80" y="155" font-family="Arial" font-size="10" fill="#666">0.5</text>
+    <text x="80" y="195" font-family="Arial" font-size="10" fill="#666">0.0</text>
+  </g>
+</svg>
