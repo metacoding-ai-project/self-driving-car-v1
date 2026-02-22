@@ -1,6 +1,6 @@
 # config.py
 """
-시뮬레이터 설정 파일 (v2 - 일반화 버전)
+시뮬레이터 설정 파일 (v3 - 훈련/테스트 분리 버전)
 """
 import random
 
@@ -24,8 +24,10 @@ BATCH_SIZE = 64      # 32 → 64 (더 안정적인 학습)
 LEARNING_RATE = 0.0005  # 0.001 → 0.0005 (더 안정적인 학습)
 
 # 맵 다양성 설정
-NUM_MAPS = 20        # 학습할 맵 개수
-MAPS_PER_EPISODE = NUM_EPISODES // NUM_MAPS  # 맵당 에피소드 수
+NUM_MAPS = 20            # 전체 맵 개수
+NUM_TRAIN_MAPS = 16      # 훈련용 맵 (16개로 배우기)
+NUM_TEST_MAPS = 4        # 테스트용 맵 (4개로 시험보기)
+EVAL_INTERVAL = 100      # 100 에피소드마다 시험
 
 # 화면 표시 설정
 SHOW_TRAINING = True  # False로 하면 화면 안 보고 빠르게 학습

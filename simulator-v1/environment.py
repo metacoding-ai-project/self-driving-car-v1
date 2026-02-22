@@ -109,7 +109,11 @@ class GridEnvironment:
         return self.grid[y, x] == 1
 
     def get_state(self, car_x, car_y, car_direction):
-        """차량 주변 상태 가져오기"""
+        """
+        전처리(Preprocessing): AI가 이해할 수 있도록 세상을 숫자로 변환!
+        사람은 눈으로 보고 판단하지만, AI는 숫자만 이해할 수 있다.
+        그래서 "벽이 있나?" → 1, "없나?" → 0 으로 바꿔주는 것!
+        """
         # 차량 주변 8칸 체크 + 현재 방향 + 목적지 방향
         directions = [
             (-1, -1), (0, -1), (1, -1),  # 위쪽 3칸
@@ -121,12 +125,15 @@ class GridEnvironment:
         for dx, dy in directions:
             check_x = car_x + dx
             check_y = car_y + dy
+            # 벽 유무를 0과 1로 변환 (전처리!)
             state.append(1 if self.is_wall(check_x, check_y) else 0)
 
         # 현재 방향 추가 (0=위, 1=오른쪽, 2=아래, 3=왼쪽)
+        # ⚠️ 방향값은 정규화 안 됨! (0~3 그대로) → v2에서 개선됨
         state.append(car_direction)
 
-        # 목적지까지의 상대적 거리 (정규화)
+        # 정규화(Normalization): 목적지 거리를 -1.0 ~ +1.0 범위로 변환
+        # 큰 숫자와 작은 숫자가 섞이면 AI가 혼란스러워한다!
         dx_to_goal = (self.goal_pos[0] - car_x) / GRID_WIDTH
         dy_to_goal = (self.goal_pos[1] - car_y) / GRID_HEIGHT
         state.append(dx_to_goal)

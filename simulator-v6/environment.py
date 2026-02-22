@@ -16,22 +16,29 @@ GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 GRAY = (128, 128, 128)
 YELLOW = (255, 255, 0)
+ORANGE = (255, 165, 0)  # v5: 동적 장애물 색상
 
 class GridEnvironment:
-    def __init__(self, map_id=None, random_map=False):
+    def __init__(self, map_id=None, random_map=False, enable_dynamic_obstacles=False):
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.screen.fill(BLACK)
-        pygame.display.set_caption("자율주행 강화학습 - 일반화 경로 찾기")
+        pygame.display.set_caption("자율주행 강화학습 v5 - Policy > Cache")
         self.clock = pygame.time.Clock()
 
-        # 격자 맵 (0=빈공간, 1=벽)
+        # 격자 맵 (0=빈공간, 1=벽, 2=동적 장애물)
         self.grid = np.zeros((GRID_HEIGHT, GRID_WIDTH), dtype=int)
 
         # 맵 생성
         self.map_id = map_id
         self.random_map = random_map
-        
+
+        # v5: 동적 장애물 시스템
+        self.enable_dynamic_obstacles = enable_dynamic_obstacles
+        self.dynamic_obstacles = []  # [(x, y, lifetime)]
+        self.steps_since_obstacle = 0
+        self.obstacle_spawn_interval = 50  # 50 스텝마다 장애물 생성
+
         if random_map:
             self.create_random_map()
         else:
@@ -270,11 +277,7 @@ class GridEnvironment:
         return self.grid[y, x] == 1
 
     def get_state(self, car_x, car_y, car_direction):
-        """
-        전처리(Preprocessing) + 정규화(Normalization) 개선!
-        v1에서는 방향값(0~3)을 그대로 넣어서 스케일이 안 맞았음.
-        v2에서는 모든 입력값을 비슷한 범위로 맞춰준다!
-        """
+        """차량 주변 상태 가져오기"""
         # 차량 주변 8칸 체크 + 현재 방향 + 목적지 방향
         directions = [
             (-1, -1), (0, -1), (1, -1),  # 위쪽 3칸
@@ -288,12 +291,10 @@ class GridEnvironment:
             check_y = car_y + dy
             state.append(1 if self.is_wall(check_x, check_y) else 0)
 
-        # 정규화(Normalization) — v1에서 개선!
-        # v1에서는 방향값(0~3)을 그대로 넣어서 스케일이 안 맞았음
-        # 0~1 범위로 정규화하면 모든 입력값이 공정하게 학습됨!
-        state.append(car_direction / 4.0)  # 0,1,2,3 → 0.0, 0.25, 0.5, 0.75
+        # 현재 방향 추가 (0=위, 1=오른쪽, 2=아래, 3=왼쪽)
+        state.append(car_direction / 4.0)  # 정규화
 
-        # 목적지까지의 상대적 거리 (정규화: -1.0 ~ +1.0)
+        # 목적지까지의 상대적 거리 (정규화)
         dx_to_goal = (self.goal_pos[0] - car_x) / GRID_WIDTH
         dy_to_goal = (self.goal_pos[1] - car_y) / GRID_HEIGHT
         state.append(dx_to_goal)
@@ -304,6 +305,60 @@ class GridEnvironment:
     def is_goal(self, x, y):
         """목적지에 도달했는지 확인"""
         return (x, y) == self.goal_pos
+
+    def add_dynamic_obstacle(self, x=None, y=None, lifetime=30):
+        """
+        동적 장애물 추가 (v5 신기능)
+
+        lifetime: 장애물이 유지될 스텝 수
+        """
+        if not self.enable_dynamic_obstacles:
+            return
+
+        if x is None or y is None:
+            # 랜덤 위치에 장애물 추가
+            for _ in range(20):  # 최대 20번 시도
+                x = random.randint(2, GRID_WIDTH - 3)
+                y = random.randint(2, GRID_HEIGHT - 3)
+
+                # 빈 공간이고, 시작점/목적지가 아니며, 이미 장애물이 없는 곳
+                if (self.grid[y, x] == 0 and
+                    (x, y) != self.start_pos and
+                    (x, y) != self.goal_pos and
+                    not any(obs[0] == x and obs[1] == y for obs in self.dynamic_obstacles)):
+                    break
+            else:
+                return  # 적합한 위치를 찾지 못함
+
+        # 장애물 추가
+        self.grid[y, x] = 2  # 2 = 동적 장애물
+        self.dynamic_obstacles.append([x, y, lifetime])
+
+    def update_dynamic_obstacles(self):
+        """
+        동적 장애물 업데이트
+
+        - lifetime 감소
+        - lifetime이 0이 되면 제거
+        """
+        if not self.enable_dynamic_obstacles:
+            return
+
+        # lifetime 감소 및 제거
+        for obs in self.dynamic_obstacles[:]:
+            obs[2] -= 1  # lifetime 감소
+            if obs[2] <= 0:
+                # 장애물 제거
+                x, y = obs[0], obs[1]
+                if 0 <= x < GRID_WIDTH and 0 <= y < GRID_HEIGHT:
+                    self.grid[y, x] = 0  # 빈 공간으로 복원
+                self.dynamic_obstacles.remove(obs)
+
+        # 주기적으로 새로운 장애물 추가
+        self.steps_since_obstacle += 1
+        if self.steps_since_obstacle >= self.obstacle_spawn_interval:
+            self.add_dynamic_obstacle()
+            self.steps_since_obstacle = 0
 
     def draw(self, car):
         """화면 그리기"""
@@ -325,6 +380,9 @@ class GridEnvironment:
                 # 목적지 (초록색)
                 elif (x, y) == self.goal_pos:
                     pygame.draw.rect(self.screen, GREEN, rect)
+                # 동적 장애물 (오렌지색) - v5
+                elif self.grid[y, x] == 2:
+                    pygame.draw.rect(self.screen, ORANGE, rect)
                 # 벽은 빨간색
                 elif self.grid[y, x] == 1:
                     pygame.draw.rect(self.screen, RED, rect)

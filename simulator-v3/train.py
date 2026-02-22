@@ -6,7 +6,7 @@ import random
 from environment import GridEnvironment
 from car import Car
 from agent import DQNAgent
-from config import CURRENT_SPEED, NUM_EPISODES, SHOW_TRAINING, NUM_MAPS, MAPS_PER_EPISODE, RANDOM_SEED
+from config import CURRENT_SPEED, NUM_EPISODES, SHOW_TRAINING, NUM_MAPS, NUM_TRAIN_MAPS, EVAL_INTERVAL, RANDOM_SEED
 
 # 재현 가능한 실험을 위한 시드 설정
 random.seed(RANDOM_SEED)
@@ -17,6 +17,13 @@ def train():
     pygame.init()
     env = GridEnvironment(random_map=True)  # 첫 맵은 랜덤
     agent = DQNAgent()
+
+    # 훈련셋/테스트셋 분리!
+    # 20개 맵을 섞어서 16개는 훈련용, 4개는 시험용으로 나눈다
+    all_map_ids = list(range(NUM_MAPS))
+    random.shuffle(all_map_ids)
+    train_map_ids = all_map_ids[:NUM_TRAIN_MAPS]   # 16개로 학습
+    test_map_ids = all_map_ids[NUM_TRAIN_MAPS:]     # 4개로 시험
 
     # 통계
     episode_rewards = []
@@ -32,13 +39,12 @@ def train():
     small_font = pygame.font.Font(None, 24)
 
     print("=" * 60)
-    print("🚗 자율주행 강화학습 시뮬레이터 v2 - 일반화 경로 찾기")
+    print("🚗 자율주행 강화학습 시뮬레이터 v3 - 훈련/테스트 분리")
     print("=" * 60)
     print(f"총 에피소드: {num_episodes}")
-    print(f"맵 개수: {NUM_MAPS}개")
-    print(f"맵당 에피소드: 약 {MAPS_PER_EPISODE}개")
-    print("훈련을 시작합니다!")
-    print("여러 맵에서 학습하여 일반화된 경로 찾기를 학습합니다.")
+    print(f"훈련 맵 ({NUM_TRAIN_MAPS}개): {sorted(train_map_ids)}")
+    print(f"테스트 맵 ({len(test_map_ids)}개): {sorted(test_map_ids)}")
+    print("훈련 맵으로 학습하고, 테스트 맵으로 진짜 실력을 확인합니다!")
     print("ESC를 누르면 중간에 종료할 수 있습니다.")
     print("=" * 60)
 
@@ -49,12 +55,11 @@ def train():
         if not running:
             break
 
-        # 매 에피소드마다 다른 맵 사용 (일정 주기마다)
-        if episode % MAPS_PER_EPISODE == 0:
-            current_map_id = random.randint(0, NUM_MAPS - 1)
-            env.reset_map(current_map_id)
-            if current_map_id not in map_success_count:
-                map_success_count[current_map_id] = 0
+        # 훈련 맵에서만 학습! (테스트 맵은 시험 볼 때만 사용)
+        current_map_id = random.choice(train_map_ids)
+        env.reset_map(current_map_id)
+        if current_map_id not in map_success_count:
+            map_success_count[current_map_id] = 0
 
         # 랜덤 시작점/목적지 (매 에피소드마다)
         start_x, start_y = env.start_pos
@@ -182,6 +187,18 @@ def train():
                   f"LR: {agent.learning_rate:.6f} | "
                   f"Map: {current_map_id}")
 
+        # 주기적으로 테스트셋으로 시험! (정확도 = 성공률)
+        if episode % EVAL_INTERVAL == 0 and episode > 0:
+            test_accuracy = evaluate_on_maps(agent, env, test_map_ids)
+            train_accuracy = evaluate_on_maps(agent, env, train_map_ids[:4])
+
+            print(f"  📝 [평가] 훈련 맵 성공률(정확도): {train_accuracy:.1f}%")
+            print(f"  📝 [평가] 테스트 맵 성공률(정확도): {test_accuracy:.1f}%")
+
+            # 과적합 감지!
+            if train_accuracy > test_accuracy + 20:
+                print(f"  ⚠️  과적합 의심! (훈련 {train_accuracy:.0f}% >> 테스트 {test_accuracy:.0f}%)")
+
         # 모델 저장 (200 에피소드마다)
         if episode % 200 == 0 and episode > 0:
             agent.save(f"model_episode_{episode}.pth")
@@ -190,9 +207,20 @@ def train():
     # 최종 모델 저장
     if running:
         agent.save("model_final.pth")
+
+        # 최종 평가
+        final_train_acc = evaluate_on_maps(agent, env, train_map_ids[:4])
+        final_test_acc = evaluate_on_maps(agent, env, test_map_ids)
+
         print("=" * 60)
         print("✅ 훈련 완료! 최종 모델 저장됨: model_final.pth")
         print(f"총 목적지 도달: {goal_reached_count}/{num_episodes} ({goal_reached_count/num_episodes*100:.1f}%)")
+        print(f"📝 최종 훈련 맵 성공률: {final_train_acc:.1f}%")
+        print(f"📝 최종 테스트 맵 성공률: {final_test_acc:.1f}%")
+        if final_train_acc > final_test_acc + 20:
+            print(f"⚠️  과적합 발생! 훈련 맵에서만 잘하고, 새로운 맵에서는 못합니다.")
+        elif final_test_acc >= 50:
+            print(f"🎉 일반화 성공! 안 본 맵에서도 {final_test_acc:.0f}% 성공!")
         print("=" * 60)
 
         # 결과 그래프
@@ -203,6 +231,31 @@ def train():
         print("=" * 60)
 
     pygame.quit()
+
+def evaluate_on_maps(agent, env, map_ids, episodes_per_map=5):
+    """안 본 맵에서 AI 실력 테스트 (정확도 = 성공률)"""
+    total = 0
+    success = 0
+
+    for map_id in map_ids:
+        env.reset_map(map_id)
+        for _ in range(episodes_per_map):
+            start_x, start_y = env.start_pos
+            car = Car(start_x, start_y)
+            state = env.get_state(car.x, car.y, car.direction)
+
+            done = False
+            while not done:
+                action = agent.select_action(state, training=False)
+                reward, done = car.move(action, env)
+                state = env.get_state(car.x, car.y, car.direction)
+
+            total += 1
+            if env.is_goal(car.x, car.y):
+                success += 1
+
+    return (success / total * 100) if total > 0 else 0
+
 
 def plot_results(rewards, lengths, map_success_count):
     """결과 시각화"""

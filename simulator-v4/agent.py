@@ -60,6 +60,9 @@ class DQNAgent:
         self.target_net = DQN(state_size, action_size).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
 
+        # 옵티마이저: Adam (현재 가장 많이 쓰이는 옵티마이저!)
+        # 경사하강법(SGD)의 업그레이드 버전
+        # 자주 가는 방향은 작게, 새 방향은 크게 — 지형에 맞춰 보폭 자동 조절!
         self.optimizer = optim.Adam(self.policy_net.parameters(),
                                     lr=self.learning_rate)
 
