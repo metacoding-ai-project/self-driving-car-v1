@@ -1,0 +1,51 @@
+<svg width="800" height="400" viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+  <rect width="100%" height="100%" fill="#fdfdfd"/>
+  <text x="400" y="30" font-family="Arial, sans-serif" font-size="24" font-weight="bold" text-anchor="middle" fill="#333">기억하는 AI: RNN vs LSTM vs Transformer</text>
+  
+  <!-- RNN Panel -->
+  <g transform="translate(50, 80)">
+    <rect width="200" height="280" rx="15" fill="#e3f2fd" stroke="#74b9ff" stroke-width="2"/>
+    <text x="100" y="30" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#0984e3">1. RNN</text>
+    <rect x="60" y="120" width="80" height="60" rx="10" fill="#fff" stroke="#0984e3" stroke-width="2"/>
+    <text x="100" y="155" font-family="Arial, sans-serif" font-size="14" text-anchor="middle">Cell</text>
+    <path d="M 140 150 Q 180 150 180 120 T 140 90" fill="none" stroke="#ff7675" stroke-width="2" marker-end="url(#arrow_r)"/>
+    <text x="100" y="220" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#555">"과거를 기억하지만"</text>
+    <text x="100" y="240" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#d63031" font-weight="bold">"금방 까먹음 (단기기억)"</text>
+  </g>
+
+  <!-- LSTM Panel -->
+  <g transform="translate(300, 80)">
+    <rect width="200" height="280" rx="15" fill="#f3e5f5" stroke="#6c5ce7" stroke-width="2"/>
+    <text x="100" y="30" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#6c5ce7">2. LSTM</text>
+    <rect x="50" y="100" width="100" height="100" rx="10" fill="#fff" stroke="#6c5ce7" stroke-width="2"/>
+    <line x1="50" y1="130" x2="150" y2="130" stroke="#55efc4" stroke-width="4"/> <!-- Cell State -->
+    <text x="100" y="125" font-family="Arial, sans-serif" font-size="10" text-anchor="middle" fill="#00b894">Cell State (장기기억)</text>
+    <circle cx="70" cy="160" r="5" fill="#ff7675"/> <!-- Gate -->
+    <circle cx="130" cy="160" r="5" fill="#ff7675"/> <!-- Gate -->
+    <text x="100" y="220" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#555">"중요한 정보는"</text>
+    <text x="100" y="240" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#00b894" font-weight="bold">"오래 기억 (게이트 제어)"</text>
+  </g>
+
+  <!-- Transformer Panel -->
+  <g transform="translate(550, 80)">
+    <rect width="200" height="280" rx="15" fill="#e8f5e9" stroke="#55efc4" stroke-width="2"/>
+    <text x="100" y="30" font-family="Arial, sans-serif" font-size="18" font-weight="bold" text-anchor="middle" fill="#00b894">3. Transformer</text>
+    <!-- Multi-head attention concept -->
+    <circle cx="50" cy="100" r="8" fill="#74b9ff"/>
+    <circle cx="100" cy="100" r="8" fill="#74b9ff"/>
+    <circle cx="150" cy="100" r="8" fill="#74b9ff"/>
+    <circle cx="50" cy="180" r="8" fill="#ff7675"/>
+    <circle cx="100" cy="180" r="8" fill="#ff7675"/>
+    <circle cx="150" cy="180" r="8" fill="#ff7675"/>
+    <line x1="50" y1="108" x2="50" y2="172" stroke="#ddd" stroke-width="1"/>
+    <line x1="50" y1="108" x2="100" y2="172" stroke="#ddd" stroke-width="1"/>
+    <line x1="50" y1="108" x2="150" y2="172" stroke="#ddd" stroke-width="1"/>
+    <line x1="100" y1="108" x2="50" y2="172" stroke="#ddd" stroke-width="1"/>
+    <line x1="100" y1="108" x2="100" y2="172" stroke="#ddd" stroke-width="1"/>
+    <line x1="150" y1="108" x2="150" y2="172" stroke="#ddd" stroke-width="1"/>
+    <text x="100" y="220" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#555">"모든 정보를 동시에"</text>
+    <text x="100" y="240" font-family="Arial, sans-serif" font-size="12" text-anchor="middle" fill="#0984e3" font-weight="bold">"직접 연결 (Attention)"</text>
+  </g>
+
+  <defs><marker id="arrow_r" markerWidth="6" markerHeight="4" refX="0" refY="2" orient="auto"><polygon points="0 0, 6 2, 0 4" fill="#ff7675" /></marker></defs>
+</svg>
